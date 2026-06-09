@@ -1,5 +1,9 @@
 # oblong
 
+<!-- badges:start -->
+![Tests](https://github.com/joeroe/oblong/actions/workflows/tests.yml/badge.svg)
+<!-- badges:end -->
+
 **oblong** is a terminal-based tabular data editor written in Rust. It focuses
 on producing typed, rectangular, column-oriented tables ready to import into
 data science workflows in R, Python, Julia, etc. It is 
