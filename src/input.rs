@@ -2,13 +2,12 @@
 // User input handling
 
 use crossterm::event::{KeyCode, KeyEvent};
-use crate::app::{App, Mode, EditBuffer};
-use crate::model::{commit_edit};
+use crate::app::{App, Mode, EditBuffer, ColumnInsertState, ColumnInsertPosition};
+use crate::model::{Column, ColumnType, commit_edit};
 
 pub fn handle_key(key: KeyEvent, app: &mut App) -> bool {
     match &mut app.mode {
         Mode::Normal => handle_normal_mode(key, app),
-
         Mode::Editing(buffer) => {
             match handle_edit_mode(key, buffer) {
                 EditResult::Continue => {}
@@ -38,7 +37,34 @@ pub fn handle_key(key: KeyEvent, app: &mut App) -> bool {
                 }
             }
             false
-        }
+        },
+        Mode::InsertColumn(state) => {
+            match handle_insert_column_mode(key, state) {
+                InsertColumnResult::Continue => {}
+
+                InsertColumnResult::Cancel => {
+                    app.mode = Mode::Normal;
+                    app.status = None;
+                }
+
+                InsertColumnResult::Commit { position, name, col_type } => {
+                    let insert_at = match position {
+                        ColumnInsertPosition::Before => app.cursor.col,
+                        ColumnInsertPosition::After => app.cursor.col + 1,
+                    };
+
+                    app.table.insert_column(
+                        insert_at,
+                        Column { name, col_type },
+                    );
+
+                    app.cursor.col = insert_at;
+                    app.mode = Mode::Normal;
+                    app.status = None;
+                }
+            }
+            false
+        },
     }
 }
 
@@ -90,6 +116,22 @@ fn handle_normal_mode(key: KeyEvent, app: &mut App) -> bool {
             });
         }
 
+        // Insert column before (a)
+        KeyCode::Char('a') => {
+            app.mode = Mode::InsertColumn(ColumnInsertState::Naming {
+                position: ColumnInsertPosition::Before,
+                buffer: String::new(),
+            });
+        }
+
+        // Insert column after (A)
+        KeyCode::Char('A') => {
+            app.mode = Mode::InsertColumn(ColumnInsertState::Naming {
+                position: ColumnInsertPosition::After,
+                buffer: String::new(),
+            });
+        }
+
         _ => {}
     }
 
@@ -132,6 +174,73 @@ fn handle_edit_mode(
     }
 }
 
+enum InsertColumnResult {
+    Continue,
+    Cancel,
+    Commit {
+        position: ColumnInsertPosition,
+        name: String,
+        col_type: ColumnType,
+    },
+}
+
+fn handle_insert_column_mode(
+    key: KeyEvent,
+    state: &mut ColumnInsertState,
+) -> InsertColumnResult {
+    match state {
+        ColumnInsertState::Naming { position, buffer } => {
+            match key.code {
+                KeyCode::Esc => InsertColumnResult::Cancel,
+
+                KeyCode::Enter => {
+                    if buffer.is_empty() {
+                        InsertColumnResult::Continue
+                    } else {
+                        let name = buffer.clone();
+                        *state = ColumnInsertState::Typing {
+                            position: *position,
+                            name,
+                        };
+                        InsertColumnResult::Continue
+                    }
+                }
+
+                KeyCode::Backspace => {
+                    buffer.pop();
+                    InsertColumnResult::Continue
+                }
+
+                KeyCode::Char(c) => {
+                    buffer.push(c);
+                    InsertColumnResult::Continue
+                }
+
+                _ => InsertColumnResult::Continue,
+            }
+        }
+
+        ColumnInsertState::Typing { position, name } => {
+            let col_type = match key.code {
+                KeyCode::Char('i') => Some(ColumnType::Integer),
+                KeyCode::Char('f') => Some(ColumnType::Float),
+                KeyCode::Char('t') => Some(ColumnType::Text),
+                KeyCode::Char('b') => Some(ColumnType::Boolean),
+                KeyCode::Esc => return InsertColumnResult::Cancel,
+                _ => None,
+            };
+
+            match col_type {
+                Some(col_type) => InsertColumnResult::Commit {
+                    position: *position,
+                    name: name.clone(),
+                    col_type,
+                },
+                None => InsertColumnResult::Continue,
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -189,4 +298,5 @@ mod tests {
         assert_eq!(app.cursor.row, 0);
         assert_eq!(app.cursor.col, 0);
     }
+
 }

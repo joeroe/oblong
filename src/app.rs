@@ -10,14 +10,33 @@ pub struct Cursor {
 }
 
 #[derive(Debug)]
+pub enum Mode {
+    Normal,
+    Editing(EditBuffer),
+    InsertColumn(ColumnInsertState),
+}
+
+#[derive(Debug)]
 pub struct EditBuffer {
     pub text: String,
 }
 
 #[derive(Debug)]
-pub enum Mode {
-    Normal,
-    Editing(EditBuffer),
+pub enum ColumnInsertState {
+    Naming {
+        position: ColumnInsertPosition,
+        buffer: String,
+    },
+    Typing {
+        position: ColumnInsertPosition,
+        name: String,
+    },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ColumnInsertPosition {
+    Before,
+    After,
 }
 
 pub struct App {

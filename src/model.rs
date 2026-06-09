@@ -63,6 +63,18 @@ impl Table {
         self.insert_empty_row(self.rows.len());
     }
 
+    pub fn insert_column(&mut self, index: usize, column: Column) {
+        let idx = index.min(self.columns.len());
+
+        // Insert the column metadata
+        self.columns.insert(idx, column);
+
+        // Insert an empty cell into every existing row
+        for row in &mut self.rows {
+            row.insert(idx, CellValue::Empty);
+        }
+    }
+
 }
 
 impl ColumnType {
@@ -270,4 +282,55 @@ mod tests {
 
         assert_eq!(table.height(), 2);
     }
+
+    #[test]
+    fn insert_column_into_empty_table() {
+        let mut table = Table::new(vec![
+            Column {
+                name: "id".into(),
+                col_type: ColumnType::Integer,
+            },
+        ]);
+
+        table.insert_column(
+            1,
+            Column {
+                name: "value".into(),
+                col_type: ColumnType::Float,
+            },
+        );
+
+        assert_eq!(table.columns.len(), 2);
+        assert_eq!(table.rows.len(), 0);
+    }
+
+    #[test]
+    fn insert_column_adds_empty_cells_to_all_rows() {
+        let mut table = Table::new(vec![
+            Column {
+                name: "id".into(),
+                col_type: ColumnType::Integer,
+            },
+        ]);
+
+        table.push_empty_row();
+        table.push_empty_row();
+
+        table.insert_column(
+            1,
+            Column {
+                name: "value".into(),
+                col_type: ColumnType::Float,
+            },
+        );
+
+        assert_eq!(table.columns.len(), 2);
+        assert_eq!(table.rows.len(), 2);
+
+        for row in &table.rows {
+            assert_eq!(row.len(), 2);
+            assert!(matches!(row[1], CellValue::Empty));
+        }
+    }
+
 }

@@ -9,14 +9,17 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{App, Mode};
+use crate::app::{App, Mode, ColumnInsertState};
 use crate::model::{CellValue, ColumnType};
 
 pub fn draw(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(1)])
-        .split(f.size());
+    .direction(Direction::Vertical)
+    .constraints([
+        Constraint::Min(1),     // table
+        Constraint::Length(2),  // status bar with border
+    ])
+    .split(f.size());
 
     draw_table(f, app, chunks[0]);
     draw_status(f, app, chunks[1]);
@@ -107,7 +110,6 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
 
     let widget = Table::new(rows, widths)
         .header(header_row)
-        .block(Block::default().title("Table").borders(Borders::ALL))
         .column_spacing(1);
 
     f.render_widget(widget, area);
@@ -142,23 +144,40 @@ fn style_for_cell(value: &CellValue) -> Style {
 }
 
 fn draw_status(f: &mut Frame, app: &App, area: Rect) {
-    let mode = match app.mode {
-        Mode::Normal => "NORMAL",
-        Mode::Editing(_) => "EDIT",
+    let status_text = match &app.mode {
+        Mode::Normal => {
+            if let Some(msg) = &app.status {
+                msg.clone()
+            } else {
+                format!(
+                    "row {} col {}",
+                    app.cursor.row + 1,
+                    app.cursor.col + 1
+                )
+            }
+        }
+
+        Mode::Editing(_) => {
+            if let Some(msg) = &app.status {
+                msg.clone()
+            } else {
+                "-- INSERT --".to_string()
+            }
+        }
+
+        Mode::InsertColumn(ColumnInsertState::Naming { buffer, .. }) => {
+            format!("New column name: {}_", buffer)
+        }
+
+        Mode::InsertColumn(ColumnInsertState::Typing { name, .. }) => {
+            format!(
+                "New column: {} | type [i]nteger [f]loat [t]ext [b]oolean", 
+                name
+            )
+        }
     };
 
-    let text = if let Some(msg) = &app.status {
-        format!("[{}] {}", mode, msg)
-    } else {
-        format!(
-            "[{}] row {} col {}",
-            mode,
-            app.cursor.row + 1,
-            app.cursor.col + 1
-        )
-    };
-
-    let paragraph = Paragraph::new(Line::from(Span::raw(text)))
+    let paragraph = Paragraph::new(Line::from(Span::raw(status_text)))
         .block(Block::default().borders(Borders::TOP))
         .style(Style::default().fg(Color::Gray));
 
