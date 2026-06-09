@@ -3,11 +3,12 @@
 
 use crossterm::event::{KeyEvent, KeyCode};
 use crate::app::{App, Mode, EditBuffer, ColumnInsertState, ColumnInsertPosition};
+use crate::input::{ControllerAction};
 
-pub fn handle_normal_mode(key: KeyEvent, app: &mut App) -> bool {
+pub fn handle_normal_mode(key: KeyEvent, app: &mut App) -> ControllerAction {
     match key.code {
         // Quit (q)
-        KeyCode::Char('q') => return true,
+        KeyCode::Char('q') => return ControllerAction::Quit,
 
         // Navigation (arrows or hjkl)
         KeyCode::Char('h') | KeyCode::Left  => move_cursor(app, 0, -1),
@@ -71,7 +72,7 @@ pub fn handle_normal_mode(key: KeyEvent, app: &mut App) -> bool {
         _ => {}
     }
 
-    false
+    ControllerAction::Continue
 }
 
 fn move_cursor(app: &mut App, d_row: isize, d_col: isize) {

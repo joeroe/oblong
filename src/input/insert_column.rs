@@ -1,53 +1,51 @@
 // src/input/insert_column.rs
-// Handle input column mode input
+// Handle insert column mode input
 
 use crossterm::event::{KeyEvent, KeyCode};
 use crate::app::{ColumnInsertState, ColumnInsertPosition};
 use crate::model::{ColumnType};
+use crate::input::Intent;
 
-pub enum InsertColumnResult {
-    Continue,
-    Cancel,
-    Commit {
-        position: ColumnInsertPosition,
-        name: String,
-        col_type: ColumnType,
-    },
+#[derive(Debug, PartialEq, Eq)]
+pub struct InsertColumnCommit {
+    pub position: ColumnInsertPosition,
+    pub name: String,
+    pub col_type: ColumnType,
 }
 
 pub fn handle_insert_column_mode(
     key: KeyEvent,
     state: &mut ColumnInsertState,
-) -> InsertColumnResult {
+) -> Intent<InsertColumnCommit> {
     match state {
         ColumnInsertState::Naming { position, buffer } => {
             match key.code {
-                KeyCode::Esc => InsertColumnResult::Cancel,
+                KeyCode::Esc => Intent::Cancel,
 
                 KeyCode::Enter => {
                     if buffer.is_empty() {
-                        InsertColumnResult::Continue
+                        Intent::Continue
                     } else {
                         let name = buffer.clone();
                         *state = ColumnInsertState::Typing {
                             position: *position,
                             name,
                         };
-                        InsertColumnResult::Continue
+                        Intent::Continue
                     }
                 }
 
                 KeyCode::Backspace => {
                     buffer.pop();
-                    InsertColumnResult::Continue
+                    Intent::Continue
                 }
 
                 KeyCode::Char(c) => {
                     buffer.push(c);
-                    InsertColumnResult::Continue
+                    Intent::Continue
                 }
 
-                _ => InsertColumnResult::Continue,
+                _ => Intent::Continue,
             }
         }
 
@@ -57,19 +55,18 @@ pub fn handle_insert_column_mode(
                 KeyCode::Char('f') => Some(ColumnType::Float),
                 KeyCode::Char('t') => Some(ColumnType::Text),
                 KeyCode::Char('b') => Some(ColumnType::Boolean),
-                KeyCode::Esc => return InsertColumnResult::Cancel,
+                KeyCode::Esc => return Intent::Cancel,
                 _ => None,
             };
 
             match col_type {
-                Some(col_type) => InsertColumnResult::Commit {
+                Some(col_type) => Intent::Commit(InsertColumnCommit {
                     position: *position,
                     name: name.clone(),
                     col_type,
-                },
-                None => InsertColumnResult::Continue,
+                }),
+                None => Intent::Continue,
             }
         }
     }
 }
-

@@ -16,6 +16,7 @@ mod ui;
 
 use app::{App, Cursor, Mode};
 use model::{Column, ColumnType, Table};
+use input::{ControllerAction};
 
 fn main() -> Result<(), io::Error> {
     enable_raw_mode()?;
@@ -45,8 +46,9 @@ fn main() -> Result<(), io::Error> {
         terminal.draw(|f| ui::draw(f, &app))?;
 
         if let Event::Key(key) = event::read()? {
-            if input::handle_key(key, &mut app) {
-                break;
+            match input::handle_key(key, &mut app) {
+                ControllerAction::Continue => {}
+                ControllerAction::Quit => break,
             }
         }
     }

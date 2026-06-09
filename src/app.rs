@@ -33,7 +33,7 @@ pub enum ColumnInsertState {
     },
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum ColumnInsertPosition {
     Before,
     After,

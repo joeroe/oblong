@@ -3,28 +3,31 @@
 
 use crossterm::event::{KeyEvent, KeyCode};
 use crate::app::{EditBuffer};
+use crate::input::Intent;
 
-pub enum EditResult {
-    Continue,
-    Commit,
-    Cancel,
+#[derive(Debug, PartialEq, Eq)]
+pub struct EditCommit {
+    pub text: String,
 }
 
 pub fn handle_edit_mode(
     key: KeyEvent,
     buffer: &mut EditBuffer,
-) -> EditResult {
+) -> Intent<EditCommit> {
     match key.code {
         KeyCode::Char(c) => {
             buffer.text.push(c);
-            EditResult::Continue
+            Intent::Continue
         }
         KeyCode::Backspace => {
             buffer.text.pop();
-            EditResult::Continue
+            Intent::Continue
         }
-        KeyCode::Enter => EditResult::Commit,
-        KeyCode::Esc => EditResult::Cancel,
-        _ => EditResult::Continue,
+        KeyCode::Enter => Intent::Commit(EditCommit {
+            text: buffer.text.clone()
+        }),
+        KeyCode::Esc => Intent::Cancel,
+        _ => Intent::Continue,
     }
 }
+
