@@ -1,7 +1,7 @@
 # oblong
 
 <!-- badges:start -->
-![Tests](https://github.com/joeroe/oblong/actions/workflows/tests.yml/badge.svg)
+![Tests](https://github.com/joeroe/oblong/actions/workflows/test.yml/badge.svg)
 <!-- badges:end -->
 
 **oblong** is a terminal-based tabular data editor written in Rust. It focuses
