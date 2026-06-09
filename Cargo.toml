@@ -1,0 +1,14 @@
+[package]
+name = "oblong"
+version = "0.1.0-alpha"
+edition = "2024"
+description = "Terminal-based tabular data editor"
+readme = "README.md"
+repository = "https://github.com/joeroe/oblong"
+license = "MIT"
+keywords = ["terminal", "tui", "editor", "tables"]
+categories = ["text-editors", "science"]
+
+[dependencies]
+crossterm = "0.27"
+ratatui = "0.26"
