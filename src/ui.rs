@@ -10,7 +10,7 @@ use ratatui::{
 };
 
 use crate::app::{App, Mode};
-use crate::model::CellValue;
+use crate::model::{CellValue, ColumnType};
 
 pub fn draw(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
@@ -30,7 +30,7 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
         .chain(table.columns.iter().map(|_| Constraint::Length(12)))
         .collect();
 
-    let header = Row::new(
+    let header_row = Row::new(
         std::iter::once(
             Cell::from(Span::styled(
                     " ",
@@ -49,7 +49,20 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
         })),
     );
 
-    let rows = table.rows.iter().enumerate().map(|(r, row)| {
+    let type_row = Row::new(
+        std::iter::once(
+            Cell::from("") // empty cell under the row-number column
+        )
+        .chain(table.columns.iter().map(|c| {
+            Cell::from(render_column_type(c.col_type)).style(
+                Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::ITALIC),
+            )
+        })),
+    );
+
+    let data_rows = table.rows.iter().enumerate().map(|(r, row)| {
         let row_number_cell = Cell::from(Span::styled(
                 format!("{}", r + 1),
                 Style::default().fg(Color::DarkGray),
@@ -58,8 +71,7 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
         Row::new(
             std::iter::once(row_number_cell)
             .chain(row.iter().enumerate().map(|(c, value)| {
-                let is_cursor =
-                    app.cursor.row == r && app.cursor.col == c;
+                let is_cursor = app.cursor.row == r && app.cursor.col == c;
 
                 if is_cursor {
                     if let Mode::Editing(buffer) = &app.mode {
@@ -90,12 +102,24 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
         )
     });
 
+
+    let rows = std::iter::once(type_row).chain(data_rows);
+
     let widget = Table::new(rows, widths)
-        .header(header)
+        .header(header_row)
         .block(Block::default().title("Table").borders(Borders::ALL))
         .column_spacing(1);
 
     f.render_widget(widget, area);
+}
+
+fn render_column_type(col_type: ColumnType) -> &'static str {
+    match col_type {
+        ColumnType::Integer => "<Integer>",
+        ColumnType::Float => "<Float>",
+        ColumnType::Text => "<Text>",
+        ColumnType::Boolean => "<Boolean>",
+    }
 }
 
 fn render_cell(value: &CellValue) -> String {
