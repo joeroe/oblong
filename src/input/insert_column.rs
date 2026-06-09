@@ -70,3 +70,60 @@ pub fn handle_insert_column_mode(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+
+    fn key(code: KeyCode) -> KeyEvent {
+        KeyEvent {
+            code,
+            modifiers: KeyModifiers::NONE,
+            kind: KeyEventKind::Press,
+            state: crossterm::event::KeyEventState::NONE,
+        }
+    }
+
+    #[test]
+    fn naming_enter_transitions_to_typing() {
+        let mut state = ColumnInsertState::Naming {
+            position: ColumnInsertPosition::After,
+            buffer: "height".into(),
+        };
+
+        let intent = handle_insert_column_mode(key(KeyCode::Enter), &mut state);
+
+        // Intent should be Continue (no commit yet)
+        assert_eq!(intent, Intent::Continue);
+
+        // State should transition to Typing with the same name
+        match state {
+            ColumnInsertState::Typing { position, name } => {
+                assert_eq!(position, ColumnInsertPosition::After);
+                assert_eq!(name, "height");
+            }
+            _ => panic!("expected Typing state after Enter"),
+        }
+    }
+
+    #[test]
+    fn typing_selects_type_and_commits() {
+        let mut state = ColumnInsertState::Typing {
+            position: ColumnInsertPosition::Before,
+            name: "alive".into(),
+        };
+
+        let intent = handle_insert_column_mode(key(KeyCode::Char('b')), &mut state);
+
+        assert_eq!(
+            intent,
+            Intent::Commit(InsertColumnCommit {
+                position: ColumnInsertPosition::Before,
+                name: "alive".into(),
+                col_type: ColumnType::Boolean,
+            })
+        );
+    }
+
+}
