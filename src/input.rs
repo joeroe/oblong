@@ -2,24 +2,93 @@
 // User input handling
 
 use crossterm::event::{KeyCode, KeyEvent};
-
-use crate::app::{App, Mode};
+use crate::app::{App, Mode, EditBuffer};
+use crate::model::{commit_edit};
 
 pub fn handle_key(key: KeyEvent, app: &mut App) -> bool {
-    match app.mode {
+    match &mut app.mode {
         Mode::Normal => handle_normal_mode(key, app),
-        Mode::Editing(_) => false,
+
+        Mode::Editing(buffer) => {
+            match handle_edit_mode(key, buffer) {
+                EditResult::Continue => {}
+
+                EditResult::Cancel => {
+                    app.mode = Mode::Normal;
+                    app.status = None;
+                }
+
+                EditResult::Commit => {
+                    let result = commit_edit(
+                        &mut app.table,
+                        app.cursor.row,
+                        app.cursor.col,
+                        &buffer.text,
+                    );
+
+                    match result {
+                        Ok(()) => {
+                            app.mode = Mode::Normal;
+                            app.status = None;
+                        }
+                        Err(err) => {
+                            app.status = Some(err);
+                        }
+                    }
+                }
+            }
+            false
+        }
     }
 }
 
 fn handle_normal_mode(key: KeyEvent, app: &mut App) -> bool {
     match key.code {
+        // Quit (q)
         KeyCode::Char('q') => return true,
 
+        // Navigation (arrows or hjkl)
         KeyCode::Char('h') | KeyCode::Left  => move_cursor(app, 0, -1),
         KeyCode::Char('l') | KeyCode::Right => move_cursor(app, 0,  1),
         KeyCode::Char('k') | KeyCode::Up    => move_cursor(app, -1, 0),
         KeyCode::Char('j') | KeyCode::Down  => move_cursor(app,  1, 0),
+
+        // Enter edit mode (i)
+        KeyCode::Char('i') | KeyCode::Enter => {
+            let cell = &app.table.rows[app.cursor.row][app.cursor.col];
+            let text = cell.to_edit_string();
+            app.mode = Mode::Editing(EditBuffer { text });
+        }
+
+        // Insert below and enter edit mode (o)
+        KeyCode::Char('o') => {
+            let insert_at = if app.table.height() == 0 {
+                0
+            } else {
+                app.cursor.row + 1
+            };
+
+            app.table.insert_empty_row(insert_at);
+
+            app.cursor.row = insert_at;
+
+            app.mode = Mode::Editing(EditBuffer {
+                text: String::new(),
+            });
+        }
+
+        // Insert above and enter edit mode (O)
+        KeyCode::Char('O') => {
+            let insert_at = app.cursor.row.min(app.table.height());
+
+            app.table.insert_empty_row(insert_at);
+
+            app.cursor.row = insert_at;
+
+            app.mode = Mode::Editing(EditBuffer {
+                text: String::new(),
+            });
+        }
 
         _ => {}
     }
@@ -37,6 +106,32 @@ fn move_cursor(app: &mut App, d_row: isize, d_col: isize) {
     app.cursor.row = new_row as usize;
     app.cursor.col = new_col as usize;
 }
+
+enum EditResult {
+    Continue,
+    Commit,
+    Cancel,
+}
+
+fn handle_edit_mode(
+    key: KeyEvent,
+    buffer: &mut EditBuffer,
+) -> EditResult {
+    match key.code {
+        KeyCode::Char(c) => {
+            buffer.text.push(c);
+            EditResult::Continue
+        }
+        KeyCode::Backspace => {
+            buffer.text.pop();
+            EditResult::Continue
+        }
+        KeyCode::Enter => EditResult::Commit,
+        KeyCode::Esc => EditResult::Cancel,
+        _ => EditResult::Continue,
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

@@ -33,7 +33,6 @@ fn main() -> Result<(), io::Error> {
 
     let mut table = Table::new(columns);
     table.push_empty_row();
-    table.push_empty_row();
 
     let mut app = App {
         table,

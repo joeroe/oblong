@@ -49,13 +49,20 @@ impl Table {
         self.rows.len()
     }
 
-    pub fn push_empty_row(&mut self) {
+    pub fn insert_empty_row(&mut self, index: usize) {
         let row = self.columns
             .iter()
             .map(|_| CellValue::Empty)
             .collect();
-        self.rows.push(row);
+
+        let idx = index.min(self.rows.len());
+        self.rows.insert(idx, row);
     }
+
+    pub fn push_empty_row(&mut self) {
+        self.insert_empty_row(self.rows.len());
+    }
+
 }
 
 impl ColumnType {
@@ -86,6 +93,30 @@ impl ColumnType {
             },
         }
     }
+}
+
+impl CellValue {
+    pub fn to_edit_string(&self) -> String {
+        match self {
+            CellValue::Int(v) => v.to_string(),
+            CellValue::Float(v) => v.to_string(),
+            CellValue::Text(v) => v.clone(),
+            CellValue::Bool(v) => v.to_string(),
+            CellValue::Empty => String::new(),
+        }
+    }
+}
+
+pub fn commit_edit(
+    table: &mut Table,
+    row: usize,
+    col: usize,
+    input: &str,
+) -> Result<(), String> {
+    let column = &table.columns[col];
+    let value = column.col_type.parse(input)?;
+    table.rows[row][col] = value;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -130,5 +161,113 @@ mod tests {
     #[should_panic]
     fn table_requires_at_least_one_column() {
         let _ = Table::new(vec![]);
+    }
+
+    #[test]
+    fn commit_valid_integer_edit() {
+        let columns = vec![
+            Column {
+                name: "id".into(),
+                col_type: ColumnType::Integer,
+            },
+        ];
+
+        let mut table = Table::new(columns);
+        table.push_empty_row();
+
+        let result = commit_edit(&mut table, 0, 0, "42");
+
+        assert!(result.is_ok());
+        assert_eq!(table.rows[0][0], CellValue::Int(42));
+    }
+
+    #[test]
+    fn commit_invalid_integer_edit_fails_and_does_not_modify_cell() {
+        let columns = vec![
+            Column {
+                name: "id".into(),
+                col_type: ColumnType::Integer,
+            },
+        ];
+
+        let mut table = Table::new(columns);
+        table.push_empty_row();
+
+        let result = commit_edit(&mut table, 0, 0, "abc");
+
+        assert!(result.is_err());
+        assert_eq!(table.rows[0][0], CellValue::Empty);
+    }
+
+    #[test]
+    fn commit_empty_input_results_in_empty_cell() {
+        let columns = vec![
+            Column {
+                name: "id".into(),
+                col_type: ColumnType::Integer,
+            },
+        ];
+
+        let mut table = Table::new(columns);
+        table.push_empty_row();
+
+        let result = commit_edit(&mut table, 0, 0, "");
+
+        assert!(result.is_ok());
+        assert_eq!(table.rows[0][0], CellValue::Empty);
+    }
+
+    #[test]
+    fn insert_empty_row_into_empty_table() {
+        let columns = vec![
+            Column {
+                name: "id".into(),
+                col_type: ColumnType::Integer,
+            },
+        ];
+
+        let mut table = Table::new(columns);
+
+        table.insert_empty_row(0);
+
+        assert_eq!(table.height(), 1);
+        assert_eq!(table.rows[0].len(), table.width());
+        assert!(matches!(table.rows[0][0], CellValue::Empty));
+    }
+
+    #[test]
+    fn insert_empty_row_above_existing_row() {
+        let columns = vec![
+            Column {
+                name: "id".into(),
+                col_type: ColumnType::Integer,
+            },
+        ];
+
+        let mut table = Table::new(columns);
+        table.push_empty_row();
+
+        table.insert_empty_row(0);
+
+        assert_eq!(table.height(), 2);
+        assert!(matches!(table.rows[0][0], CellValue::Empty));
+        assert!(matches!(table.rows[1][0], CellValue::Empty));
+    }
+
+    #[test]
+    fn insert_empty_row_below_existing_row() {
+        let columns = vec![
+            Column {
+                name: "id".into(),
+                col_type: ColumnType::Integer,
+            },
+        ];
+
+        let mut table = Table::new(columns);
+        table.push_empty_row();
+
+        table.insert_empty_row(1);
+
+        assert_eq!(table.height(), 2);
     }
 }

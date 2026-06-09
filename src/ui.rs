@@ -25,34 +25,69 @@ pub fn draw(f: &mut Frame, app: &App) {
 fn draw_table(f: &mut Frame, app: &App, area: Rect) {
     let table = &app.table;
 
-    let widths: Vec<Constraint> = table
-        .columns
-        .iter()
-        .map(|_| Constraint::Length(12))
+    let widths: Vec<Constraint> =
+        std::iter::once(Constraint::Length(4))
+        .chain(table.columns.iter().map(|_| Constraint::Length(12)))
         .collect();
 
     let header = Row::new(
-        table.columns.iter().map(|c| {
+        std::iter::once(
             Cell::from(Span::styled(
-                c.name.clone(),
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                    " ",
+                    Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
             ))
-        }),
+        )
+        .chain(table.columns.iter().map(|c| {
+            Cell::from(Span::styled(
+                    c.name.clone(),
+                    Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ))
+        })),
     );
 
     let rows = table.rows.iter().enumerate().map(|(r, row)| {
-        Row::new(row.iter().enumerate().map(|(c, value)| {
-            let mut style = style_for_cell(value);
+        let row_number_cell = Cell::from(Span::styled(
+                format!("{}", r + 1),
+                Style::default().fg(Color::DarkGray),
+        ));
 
-            if app.cursor.row == r && app.cursor.col == c {
-                style = style
-                    .fg(Color::Black)
-                    .bg(Color::LightBlue)
-                    .add_modifier(Modifier::BOLD);
-            }
+        Row::new(
+            std::iter::once(row_number_cell)
+            .chain(row.iter().enumerate().map(|(c, value)| {
+                let is_cursor =
+                    app.cursor.row == r && app.cursor.col == c;
 
-            Cell::from(Span::styled(render_cell(value), style))
-        }))
+                if is_cursor {
+                    if let Mode::Editing(buffer) = &app.mode {
+                        return Cell::from(buffer.text.clone()).style(
+                            Style::default()
+                            .fg(Color::Black)
+                            .bg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                        );
+                    }
+                }
+
+                let mut cell = Cell::from(render_cell(value));
+
+                if is_cursor {
+                    cell = cell.style(
+                        Style::default()
+                        .fg(Color::Black)
+                        .bg(Color::LightBlue)
+                        .add_modifier(Modifier::BOLD),
+                    );
+                } else {
+                    cell = cell.style(style_for_cell(value));
+                }
+
+                cell
+            })),
+        )
     });
 
     let widget = Table::new(rows, widths)
